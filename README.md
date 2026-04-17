@@ -1,3 +1,5 @@
+![main.png](assets/main.png)
+
 ### 🚀 Features
 
 - **Nested folders support** – JSON files can be organized in any folder depth.
