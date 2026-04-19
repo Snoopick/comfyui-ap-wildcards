@@ -114,6 +114,11 @@ class AP_Wildcards:
         return sorted(wildcards_dict.keys())
 
     @classmethod
+    def get_wildcards_counts(cls) -> Dict[str, int]:
+        wildcards_dict = cls.load_all_wildcards()
+        return {k: len(v) for k, v in wildcards_dict.items()}
+
+    @classmethod
     def IS_CHANGED(cls, text_input):
         return random.random()
 
@@ -213,3 +218,9 @@ async def delete_template(request):
         return web.json_response({"success": True})
     else:
         return web.json_response({"error": "Template not found"}, status=404)
+
+# API для получения количества вариантов
+@PromptServer.instance.routes.get("/ap-wildcards/counts")
+async def get_wildcards_counts(request):
+    counts = AP_Wildcards.get_wildcards_counts()
+    return web.json_response(counts)

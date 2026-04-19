@@ -31,7 +31,7 @@ function createCustomWildcardSelector(node) {
     treeContainer.style.borderRadius = "4px";
     treeContainer.style.marginTop = "5px";
     treeContainer.style.boxSizing = "border-box";
-    treeContainer.style.maxHeight = "200px"; // Fallback
+    treeContainer.style.maxHeight = "200px";
 
     // Templates block
     const templatesContainer = document.createElement("div");
@@ -93,6 +93,7 @@ function createCustomWildcardSelector(node) {
     templatesContainer.appendChild(newTemplateName);
 
     let wildcardsData = [];
+    let wildcardsCounts = {};
     let resizeObserver = null;
     let widgetsAreaRef = null;
 
@@ -169,9 +170,13 @@ function createCustomWildcardSelector(node) {
 
     async function loadWildcards() {
         try {
-            const response = await fetch("/ap-wildcards/list");
-            if (!response.ok) throw new Error();
-            wildcardsData = await response.json();
+            const [listResp, countsResp] = await Promise.all([
+                fetch("/ap-wildcards/list"),
+                fetch("/ap-wildcards/counts")
+            ]);
+            if (!listResp.ok || !countsResp.ok) throw new Error();
+            wildcardsData = await listResp.json();
+            wildcardsCounts = await countsResp.json();
             renderTree(searchInput.value);
         } catch (error) {
             treeContainer.innerHTML = "<div style='padding:8px;color:red;'>Error loading wildcards</div>";
@@ -195,6 +200,21 @@ function createCustomWildcardSelector(node) {
         return root;
     }
 
+    function getFolderCount(node, counts) {
+        let total = 0;
+        if (node._categories) {
+            node._categories.forEach(cat => {
+                total += counts[cat.fullPath] || 0;
+            });
+        }
+        for (const key in node) {
+            if (key !== '_categories' && node.hasOwnProperty(key)) {
+                total += getFolderCount(node[key], counts);
+            }
+        }
+        return total;
+    }
+
     function createTreeNode(treeNode, parentElement, level = 0, filterText = "") {
         const keys = Object.keys(treeNode).filter(k => k !== '_categories').sort();
         const categories = treeNode._categories || [];
@@ -204,13 +224,14 @@ function createCustomWildcardSelector(node) {
             const matches = filterText === "" || cat.name.toLowerCase().includes(filterText.toLowerCase()) || cat.fullPath.toLowerCase().includes(filterText.toLowerCase());
             if (matches) {
                 hasVisibleChild = true;
+                const count = wildcardsCounts[cat.fullPath] || 0;
                 const item = document.createElement("div");
                 item.style.padding = `${6}px ${8 + level * 16}px`;
                 item.style.color = "#aaa";
                 item.style.fontSize = "12px";
                 item.style.cursor = "pointer";
                 item.style.borderBottom = "1px solid #252525";
-                item.textContent = `🏷️ ${cat.name}`;
+                item.textContent = `🏷️ ${cat.name} (${count})`;
                 item.onmouseover = () => item.style.backgroundColor = "#333";
                 item.onmouseout = () => item.style.backgroundColor = "transparent";
                 item.onclick = (e) => {
@@ -225,6 +246,7 @@ function createCustomWildcardSelector(node) {
             const childTree = treeNode[key];
             const childDiv = document.createElement("div");
             const hasVisible = createTreeNode(childTree, childDiv, level + 1, filterText);
+            const folderCount = getFolderCount(childTree, wildcardsCounts);
             if (hasVisible || filterText === "" || key.toLowerCase().includes(filterText.toLowerCase())) {
                 hasVisibleChild = true;
                 const header = document.createElement("div");
@@ -234,7 +256,7 @@ function createCustomWildcardSelector(node) {
                 header.style.fontSize = "12px";
                 header.style.cursor = "pointer";
                 header.style.borderBottom = "1px solid #333";
-                header.textContent = `📁 ${key}`;
+                header.textContent = `📁 ${key} (${folderCount})`;
                 let isExpanded = filterText !== "";
                 const childrenDiv = document.createElement("div");
                 childrenDiv.style.display = isExpanded ? "block" : "none";
@@ -242,7 +264,7 @@ function createCustomWildcardSelector(node) {
                     e.stopPropagation();
                     isExpanded = !isExpanded;
                     childrenDiv.style.display = isExpanded ? "block" : "none";
-                    header.textContent = `${isExpanded ? '📂' : '📁'} ${key}`;
+                    header.textContent = `${isExpanded ? '📂' : '📁'} ${key} (${folderCount})`;
                     setTimeout(() => updateTreeMaxHeight(), 10);
                 };
                 header.onmouseover = () => header.style.backgroundColor = "#3a3a3a";
@@ -285,9 +307,6 @@ function createCustomWildcardSelector(node) {
         else textWidget.value = currentText + ", " + wildcardText;
         
         if (textWidget.callback) textWidget.callback(textWidget.value);
-        
-        // searchInput.value = "";
-        // renderTree("");
     }
 
     function updateTreeMaxHeight() {
@@ -355,7 +374,6 @@ app.registerExtension({
                     this.setSize([this.size[0], 400]);
                 }
                 setTimeout(() => createCustomWildcardSelector(this), 100);
-                setTimeout(() => updateTreeMaxHeight(this), 120);
                 return result;
             };
         }
