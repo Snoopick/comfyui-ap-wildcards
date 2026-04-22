@@ -10,10 +10,17 @@ function createCustomWildcardSelector(node) {
     container.style.position = "relative";
     container.style.overflow = "visible";
 
+    // ==== HEADER WITH SEARCH AND REFRESH ====
+    const headerContainer = document.createElement("div");
+    headerContainer.style.display = "flex";
+    headerContainer.style.gap = "6px";
+    headerContainer.style.alignItems = "center";
+    headerContainer.style.marginBottom = "5px";
+
     const searchInput = document.createElement("input");
     searchInput.type = "text";
     searchInput.placeholder = "🔍 Search wildcards...";
-    searchInput.style.width = "100%";
+    searchInput.style.flex = "1";
     searchInput.style.padding = "6px";
     searchInput.style.backgroundColor = "#2a2a2a";
     searchInput.style.color = "#ccc";
@@ -21,6 +28,19 @@ function createCustomWildcardSelector(node) {
     searchInput.style.borderRadius = "4px";
     searchInput.style.fontSize = "12px";
     searchInput.style.boxSizing = "border-box";
+
+    const refreshBtn = document.createElement("button");
+    refreshBtn.innerHTML = "🔄";
+    refreshBtn.title = "Refresh wildcards list";
+    refreshBtn.style.padding = "6px 8px";
+    refreshBtn.style.backgroundColor = "#3a3a3a";
+    refreshBtn.style.color = "#ccc";
+    refreshBtn.style.border = "1px solid #555";
+    refreshBtn.style.borderRadius = "4px";
+    refreshBtn.style.cursor = "pointer";
+    refreshBtn.style.fontSize = "14px";
+    refreshBtn.style.lineHeight = "1";
+    refreshBtn.style.transition = "background-color 0.2s, transform 0.2s";
 
     const treeContainer = document.createElement("div");
     treeContainer.style.width = "100%";
@@ -96,6 +116,7 @@ function createCustomWildcardSelector(node) {
     let wildcardsCounts = {};
     let resizeObserver = null;
     let widgetsAreaRef = null;
+    let isRefreshing = false;
 
     async function loadTemplatesList() {
         try {
@@ -169,6 +190,29 @@ function createCustomWildcardSelector(node) {
     deleteBtn.onclick = deleteTemplate;
 
     async function loadWildcards() {
+        if (isRefreshing) return;
+        isRefreshing = true;
+        
+        // Visual feedback: spinning icon + disabled state
+        refreshBtn.disabled = true;
+        refreshBtn.style.opacity = "0.6";
+        refreshBtn.style.cursor = "wait";
+        refreshBtn.innerHTML = "⟳";
+        refreshBtn.style.animation = "spin 0.8s linear infinite";
+        
+        // Add spin keyframes if not exists
+        if (!document.getElementById("ap-wildcards-spin-style")) {
+            const style = document.createElement("style");
+            style.id = "ap-wildcards-spin-style";
+            style.textContent = `
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+
         try {
             const [listResp, countsResp] = await Promise.all([
                 fetch("/ap-wildcards/list"),
@@ -180,8 +224,31 @@ function createCustomWildcardSelector(node) {
             renderTree(searchInput.value);
         } catch (error) {
             treeContainer.innerHTML = "<div style='padding:8px;color:red;'>Error loading wildcards</div>";
+        } finally {
+            isRefreshing = false;
+            refreshBtn.disabled = false;
+            refreshBtn.style.opacity = "1";
+            refreshBtn.style.cursor = "pointer";
+            refreshBtn.innerHTML = "🔄";
+            refreshBtn.style.animation = "none";
         }
     }
+
+    refreshBtn.onclick = () => {
+        loadWildcards();
+    };
+
+    refreshBtn.onmouseover = () => {
+        if (!isRefreshing) {
+            refreshBtn.style.backgroundColor = "#4a4a4a";
+            refreshBtn.style.transform = "scale(1.1)";
+        }
+    };
+
+    refreshBtn.onmouseout = () => {
+        refreshBtn.style.backgroundColor = "#3a3a3a";
+        refreshBtn.style.transform = "scale(1)";
+    };
 
     function buildTree(paths) {
         const root = {};
@@ -314,11 +381,11 @@ function createCustomWildcardSelector(node) {
         if (!widgetArea) return;
 
         const areaHeight = widgetArea.clientHeight || 300;
-        const inputHeight = searchInput.offsetHeight || 30;
+        const headerHeight = headerContainer.offsetHeight || 30;
         const templateHeight = templatesContainer.offsetHeight || 30;
         const margins = 15;
 
-        let available = areaHeight - inputHeight - templateHeight - margins - 10;
+        let available = areaHeight - headerHeight - templateHeight - margins - 10;
         if (available < 60) available = 60;
         if (available > 300) available = 300;
 
@@ -329,7 +396,10 @@ function createCustomWildcardSelector(node) {
         renderTree(searchInput.value);
     };
 
-    container.appendChild(searchInput);
+    headerContainer.appendChild(searchInput);
+    headerContainer.appendChild(refreshBtn);
+
+    container.appendChild(headerContainer);
     container.appendChild(treeContainer);
     container.appendChild(templatesContainer);
 

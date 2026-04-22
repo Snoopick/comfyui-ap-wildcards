@@ -11,6 +11,11 @@
 - **Templates** – save, load, and delete prompts (stored in `templates.json`).
 - **Dynamic height** – category block adjusts to node size (60–300px).
 - **Auto‑created example** – `wildcards/example.json` created on first run.
+- **Item counts** – displays the number of items in each category.
+- **Search functionality** – search by category name or file path.
+- **Auto-refresh** – automatically updates category list when JSON files change.
+- **Visual feedback** – spinning refresh button with disabled state during update.
+- **Responsive design** – dynamically adjusts to node size changes.
 
 ### 📥 Installation
 
