@@ -1,7 +1,7 @@
 [project]
 name = "ap-wildcards"
 description = "AP-Wildcards is a powerful node for ComfyUI that allows using wildcards (random value substitution) in prompts. Supports hierarchical category organization, search, templates, and complex logical constructs."
-version = "1.0.1"
+version = "1.0.2"
 license = "MIT" 
 
 [project.urls]
